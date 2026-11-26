@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparador automático de precios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAF6EF;
+    --surface: #FFFFFF;
+    --ink: #2B2620;
+    --ink-muted: #6B6255;
+    --border: #E3DACB;
+    --border-strong: #CBBFA8;
+    --green: #3B7A57;
+    --green-bg: #E4F1E9;
+    --brick: #A8442E;
+    --brick-bg: #FBF0ED;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Atkinson Hyperlegible', -apple-system, 'Segoe UI', sans-serif;
+    font-size: 18px;
+    line-height: 1.5;
+    padding: 28px 16px 80px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 16px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--ink-muted); margin: 0 0 22px; max-width: 66ch; }
+
+  /* Pestañas */
+  .tabs { display: flex; gap: 8px; margin-bottom: 22px; border-bottom: 2px solid var(--border-strong); flex-wrap: wrap; }
+  .tab-btn {
+    font-family: inherit; font-size: 19px; font-weight: 700;
+    padding: 12px 22px;
+    background: transparent; color: var(--ink-muted);
+    border: 2px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer;
+    margin-bottom: -2px;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active {
+    background: var(--surface); color: var(--green);
+    border-color: var(--border-strong);
+    border-bottom: 2px solid var(--surface);
+  }
+  .tab-badge {
+    display: inline-block; min-width: 26px; padding: 0 8px; margin-left: 8px;
+    background: var(--green); color: #fff; border-radius: 13px;
+    font-size: 16px; text-align: center;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Botones y campos */
+  .search-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .search-row input {
+    flex: 1; min-width: 240px;
+    font-family: inherit; font-size: 19px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface); color: var(--ink);
+  }
+  input:focus { outline: 3px solid #B9D6C4; border-color: var(--green); }
+  button:focus-visible { outline: 3px solid #B9D6C4; outline-offset: 2px; }
+  .btn {
+    font-family: inherit; font-size: 19px; font-weight: 700;
+    padding: 14px 28px; min-height: 48px;
+    background: var(--green); color: #fff;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  .btn:hover { background: #316649; }
+  .btn:disabled { background: var(--border-strong); cursor: wait; }
+  .btn-secondary { background: var(--surface); color: var(--green); border: 2px solid var(--green); }
+  .btn-secondary:hover { background: var(--green-bg); }
+  .btn-danger { background: var(--surface); color: var(--brick); border: 2px solid var(--brick); }
+  .btn-danger:hover { background: var(--brick-bg); }
+
+  .status { min-height: 28px; color: var(--ink-muted); margin-bottom: 8px; }
+
+  /* Resultados de búsqueda */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 960px) { .results-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .results-grid { grid-template-columns: 1fr; } }
+
+  .store-col {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .store-col h2 {
+    font-size: 21px; margin: 0 0 10px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--border-strong);
+  }
+  .product-list { list-style: none; margin: 0; padding: 0; }
+  .product-item {
+    padding: 10px; margin-bottom: 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px; background: var(--bg);
+  }
+  .product-item.cheapest { background: var(--green-bg); border-color: var(--green); }
+  .product-name { font-size: 16px; margin-bottom: 4px; }
+  .product-price { font-size: 24px; font-weight: 700; }
+  .best-badge { color: var(--green); font-weight: 700; font-size: 15px; }
+  .product-link { display: block; margin-top: 4px; font-size: 15px; color: var(--green); }
+  .empty-msg, .error-msg { color: var(--ink-muted); font-size: 16px; margin: 0; }
+  .error-msg { color: var(--brick); }
+  .oos-block { margin-top: 12px; border-top: 1.5px dashed var(--border-strong); padding-top: 10px; }
+  .oos-block summary { cursor: pointer; color: var(--ink-muted); font-size: 16px; font-weight: 700; padding: 4px 0; }
+  .oos-block .product-item { opacity: 0.6; background: #F1ECE2; margin-top: 8px; }
+  .oos-block .product-price { font-size: 19px; text-decoration: line-through; text-decoration-thickness: 1px; }
+  .section-label { font-size: 15px; font-weight: 700; color: var(--green); margin: 0 0 8px; }
+
+  /* Cantidad + agregar */
+  .item-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .qty {
+    display: inline-flex; align-items: center;
+    border: 1.5px solid var(--border-strong); border-radius: 6px; background: var(--surface);
+  }
+  .qty button {
+    width: 44px; height: 44px; font-size: 24px; font-family: inherit; font-weight: 700;
+    background: transparent; border: none; cursor: pointer; color: var(--green);
+  }
+  .qty button:hover { background: var(--green-bg); }
+  .qty .qty-num { min-width: 34px; text-align: center; font-size: 19px; font-weight: 700; }
+  .btn-add {
+    font-family: inherit; font-size: 16px; font-weight: 700;
+    padding: 10px 14px; min-height: 44px;
+    background: var(--green); color: #fff;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  .btn-add:hover { background: #316649; }
+  .btn-add.added { background: #2A5740; }
+
+  /* Lista de compras */
+  .list-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .progress { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: 6px 0 12px; display: none; }
+  .progress.show { display: block; }
+  .progress-bar { height: 100%; width: 0; background: var(--green); transition: width 0.25s ease; }
+  .list-view { max-width: 860px; }
+  .list-empty {
+    background: var(--surface); border: 1.5px dashed var(--border-strong); border-radius: 8px;
+    padding: 30px 20px; text-align: center; color: var(--ink-muted);
+  }
+  .store-group {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .store-group-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    border-bottom: 2px solid var(--border-strong); padding-bottom: 8px; margin-bottom: 4px;
+  }
+  .store-group-head h2 { font-size: 22px; margin: 0; }
+  .store-group-head .sub { font-weight: 700; font-size: 20px; }
+  .l-item {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 16px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .l-item:last-child { border-bottom: none; }
+  .l-name { font-weight: 700; font-size: 18px; }
+  .l-unit { color: var(--ink-muted); font-size: 15px; }
+  .l-sub { font-size: 22px; font-weight: 700; text-align: right; white-space: nowrap; }
+  .l-controls { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .l-controls a { color: var(--green); font-size: 15px; }
+  .btn-remove {
+    font-family: inherit; font-size: 16px; background: transparent; color: var(--brick);
+    border: 1.5px solid var(--brick); border-radius: 6px; padding: 8px 12px; min-height: 44px; cursor: pointer;
+  }
+  .btn-remove:hover { background: var(--brick-bg); }
+  .l-warn { color: var(--brick); font-weight: 700; font-size: 15px; }
+  .l-changed { font-size: 15px; color: var(--ink-muted); }
+  .l-item.oos .l-name, .l-item.oos .l-sub { text-decoration: line-through; opacity: 0.55; }
+
+  .total-box {
+    background: var(--green-bg); border: 2px solid var(--green);
+    border-radius: 8px; padding: 16px 18px; margin-top: 16px;
+  }
+  .total-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .total-line .label { font-size: 20px; font-weight: 700; }
+  .total-line .amount { font-size: 34px; font-weight: 700; color: var(--green); }
+  .total-note { color: var(--ink-muted); font-size: 15px; margin: 8px 0 0; }
+
+  /* Promociones */
+  .promo-off { color: var(--brick); font-weight: 700; font-size: 15px; }
+  .promo-chip {
+    display: inline-block; background: #FFF3D6; color: #7A5300;
+    border: 1px solid #E8C671; border-radius: 12px;
+    padding: 1px 10px; font-size: 14px; font-weight: 700; margin: 4px 6px 0 0;
+  }
+  .filter-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 14px; cursor: pointer; }
+  .filter-check input { width: 24px; height: 24px; accent-color: var(--green); cursor: pointer; }
+
+  footer.note { margin-top: 26px; color: var(--ink-muted); font-size: 15px; max-width: 70ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Comparador automático de precios</h1>
+
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" role="tab" id="tabBtnBuscar" aria-selected="true" aria-controls="tab-buscar">Buscar producto</button>
+    <button class="tab-btn" role="tab" id="tabBtnLista" aria-selected="false" aria-controls="tab-lista">Lista de compras<span class="tab-badge" id="badge" style="display:none">0</span></button>
+  </div>
+
+  <!-- PESTAÑA 1: BUSCADOR -->
+  <section id="tab-buscar" class="tab-panel active" role="tabpanel">
+    <p class="subtitle">Escribí el producto y te muestra los precios de Coto, Carrefour, Jumbo y Disco, del más barato al más caro (el más barato con stock se marca en verde). Se muestran las promociones de cada producto. Elegís la cantidad y lo agregás a tu lista de compras.</p>
+
+    <form id="searchForm" class="search-row">
+      <input type="text" id="searchInput" placeholder="Ej: crema de leche, coca cola zero 1.5" autocomplete="off" aria-label="Producto a buscar">
+      <button type="submit" class="btn" id="searchBtn">Buscar</button>
+    </form>
+
+    <label class="filter-check"><input type="checkbox" id="onlyPromos"> Mostrar solo productos con promoción</label>
+
+    <div id="status" class="status" aria-live="polite"></div>
+    <div id="results" class="results-grid"></div>
+  </section>
+
+  <!-- PESTAÑA 2: LISTA DE COMPRAS -->
+  <section id="tab-lista" class="tab-panel" role="tabpanel">
+    <p class="subtitle">Acá queda todo lo que fuiste agregando, ordenado por súper y con el total. La lista se guarda en este dispositivo, así que la podés retomar otro día.</p>
+
+    <div class="list-actions" id="listActions" style="display:none">
+      <button type="button" class="btn" id="updateBtn">Actualizar precios</button>
+      <button type="button" class="btn btn-secondary" id="copyBtn">Copiar lista</button>
+      <button type="button" class="btn btn-danger" id="clearBtn">Vaciar lista</button>
+    </div>
+
+    <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+    <div id="listStatus" class="status" aria-live="polite"></div>
+    <div id="listView" class="list-view"></div>
+  </section>
+
+  <footer class="note">
+    Los precios se consultan en el momento en cada supermercado, no se cargan a mano. Los productos sin stock no cuentan para el "más barato" ni se pueden agregar a la lista. Solo aparecen productos cuyo nombre contiene todas las palabras que escribiste. Vital no está incluido porque no tiene un catálogo online consultable.
+  </footer>
+</div>
+
+<script>
+  const ORDEN = ['coto', 'carrefour', 'jumbo', 'disco'];
+  const NOMBRES_TIENDA = ['Coto', 'Carrefour', 'Jumbo', 'Disco'];
+  const CLAVE_LISTA = 'comparador-lista-v1';
+  const pesos = (n) => '$' + Math.round(n).toLocaleString('es-AR');
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  function el(tag, clase, texto) {
+    const e = document.createElement(tag);
+    if (clase) e.className = clase;
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+  }
+
+  // Muestra "-20% (antes $X)" y las etiquetas de promoción de un producto
+  function agregarPromos(contenedor, item) {
+    if (item.descuentoPct) {
+      const antes = item.precioLista ? ' (antes ' + pesos(item.precioLista) + ')' : '';
+      contenedor.appendChild(el('div', 'promo-off', '-' + item.descuentoPct + '%' + antes));
+    }
+    (item.promos || []).forEach((texto) => contenedor.appendChild(el('span', 'promo-chip', texto)));
+  }
+
+  const tienePromo = (p) => Boolean((p.promos && p.promos.length) || p.descuentoPct);
+
+  /* ---------- Lista guardada en el dispositivo ---------- */
+  let lista = cargarLista();
+
+  function cargarLista() {
+    try {
+      const raw = localStorage.getItem(CLAVE_LISTA);
+      const datos = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(datos)) return [];
+      return datos.filter((i) =>
+        i && typeof i.nombre === 'string' && typeof i.tienda === 'string' &&
+        typeof i.precio === 'number' && typeof i.cantidad === 'number'
+      );
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function guardarLista() {
+    try { localStorage.setItem(CLAVE_LISTA, JSON.stringify(lista)); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  function agregarALista(prod, tienda, cantidad) {
+    const id = tienda + '|' + norm(prod.nombre);
+    const existente = lista.find((i) => i.id === id);
+    if (existente) {
+      existente.cantidad = Math.min(99, existente.cantidad + cantidad);
+      existente.precio = prod.precio;
+      existente.precioLista = prod.precioLista || null;
+      existente.promos = prod.promos || [];
+      existente.descuentoPct = prod.descuentoPct || null;
+      existente.estado = 'ok';
+      if (prod.url) existente.url = prod.url;
+    } else {
+      lista.push({
+        id, tienda, nombre: prod.nombre, precio: prod.precio,
+        url: prod.url || null, cantidad, estado: 'ok', precioAnterior: null,
+        precioLista: prod.precioLista || null, promos: prod.promos || [], descuentoPct: prod.descuentoPct || null,
+      });
+    }
+    guardarLista();
+    renderLista();
+  }
+
+  /* ---------- Pestañas ---------- */
+  const tabs = [
+    { btn: document.getElementById('tabBtnBuscar'), panel: document.getElementById('tab-buscar') },
+    { btn: document.getElementById('tabBtnLista'), panel: document.getElementById('tab-lista') },
+  ];
+  tabs.forEach((t) => {
+    t.btn.addEventListener('click', () => {
+      tabs.forEach((o) => {
+        const activa = o === t;
+        o.btn.classList.toggle('active', activa);
+        o.btn.setAttribute('aria-selected', activa ? 'true' : 'false');
+        o.panel.classList.toggle('active', activa);
+      });
+    });
+  });
+
+  /* ---------- Pestaña 1: buscador ---------- */
+  const form = document.getElementById('searchForm');
+  const input = document.getElementById('searchInput');
+  const btn = document.getElementById('searchBtn');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const onlyPromos = document.getElementById('onlyPromos');
+  let ultimaBusqueda = null;
+
+  onlyPromos.addEventListener('change', () => {
+    if (!ultimaBusqueda) return;
+    resultsEl.innerHTML = '';
+    render(ultimaBusqueda.tiendas, ultimaBusqueda.q);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q) return;
+
+    btn.disabled = true;
+    statusEl.textContent = 'Buscando en los supermercados...';
+    resultsEl.innerHTML = '';
+
+    try {
+      const resp = await fetch('/api/buscar?q=' + encodeURIComponent(q));
+      const data = await resp.json();
+      if (!resp.ok) {
+        statusEl.textContent = data.error || 'Ocurrió un error al buscar.';
+      } else {
+        statusEl.textContent = '';
+        ultimaBusqueda = { tiendas: data.tiendas, q };
+        render(data.tiendas, q);
+      }
+    } catch (err) {
+      statusEl.textContent = 'No se pudo conectar. Probá de nuevo en un momento.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Selector de cantidad + botón "Agregar a la lista"
+  function crearAcciones(prod, tienda) {
+    let cant = 1;
+    const wrap = el('div', 'item-actions');
+
+    const qty = el('div', 'qty');
+    const menos = el('button', '', '−');
+    menos.type = 'button';
+    menos.setAttribute('aria-label', 'Una unidad menos');
+    const num = el('span', 'qty-num', '1');
+    const mas = el('button', '', '+');
+    mas.type = 'button';
+    mas.setAttribute('aria-label', 'Una unidad más');
+    menos.addEventListener('click', () => { if (cant > 1) { cant--; num.textContent = cant; } });
+    mas.addEventListener('click', () => { if (cant < 99) { cant++; num.textContent = cant; } });
+    qty.append(menos, num, mas);
+
+    const agregar = el('button', 'btn-add', 'Agregar a la lista');
+    agregar.type = 'button';
+    agregar.addEventListener('click', () => {
+      agregarALista(prod, tienda, cant);
+      agregar.textContent = 'Agregado ✓';
+      agregar.classList.add('added');
+      cant = 1;
+      num.textContent = '1';
+      setTimeout(() => {
+        agregar.textContent = 'Agregar a la lista';
+        agregar.classList.remove('added');
+      }, 1400);
+    });
+
+    wrap.append(qty, agregar);
+    return wrap;
+  }
+
+  function crearItem(prod, esMin, tienda) {
+    const li = el('li', 'product-item' + (esMin ? ' cheapest' : ''));
+    li.appendChild(el('div', 'product-name', prod.nombre));
+    li.appendChild(el('div', 'product-price', pesos(prod.precio)));
+    agregarPromos(li, prod);
+    if (esMin) li.appendChild(el('div', 'best-badge', 'Más barato de todos'));
+    if (prod.url) {
+      const a = el('a', 'product-link', 'Ver en la web del súper');
+      a.href = prod.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      li.appendChild(a);
+    }
+    if (prod.disponible) li.appendChild(crearAcciones(prod, tienda));
+    return li;
+  }
+
+  function render(tiendas, termino) {
+    // El "más barato de todos" se calcula solo entre productos con stock.
+    let precioMin = Infinity;
+    ORDEN.forEach((k) => {
+      const t = tiendas[k];
+      if (t && t.ok) {
+        t.productos.filter((p) => p.disponible).forEach((p) => {
+          precioMin = Math.min(precioMin, p.precio);
+        });
+      }
+    });
+
+    ORDEN.forEach((k) => {
+      const t = tiendas[k];
+      const col = el('div', 'store-col');
+      col.appendChild(el('h2', '', (t && t.tienda) || k));
+
+      if (!t || !t.ok) {
+        col.appendChild(el('p', 'error-msg', 'No se pudo consultar esta tienda ahora.'));
+        resultsEl.appendChild(col);
+        return;
+      }
+
+      const soloPromos = onlyPromos.checked;
+      const conStock = t.productos.filter((p) => p.disponible && (!soloPromos || tienePromo(p)));
+      const sinStock = soloPromos ? [] : t.productos.filter((p) => !p.disponible);
+
+      if (conStock.length === 0 && sinStock.length === 0) {
+        col.appendChild(el('p', 'empty-msg',
+          (soloPromos ? 'Sin promociones para "' : 'Sin resultados para "') + termino + '".'));
+        resultsEl.appendChild(col);
+        return;
+      }
+
+      if (conStock.length > 0) {
+        col.appendChild(el('p', 'section-label', 'Con stock'));
+        const ul = el('ul', 'product-list');
+        conStock.slice(0, 8).forEach((prod) => {
+          ul.appendChild(crearItem(prod, prod.precio === precioMin, t.tienda));
+        });
+        col.appendChild(ul);
+      } else {
+        col.appendChild(el('p', 'empty-msg', 'Ningún resultado con stock.'));
+      }
+
+      if (sinStock.length > 0) {
+        const det = el('details', 'oos-block');
+        det.appendChild(el('summary', '', 'Sin stock (' + sinStock.length + ')'));
+        const ul2 = el('ul', 'product-list');
+        sinStock.slice(0, 8).forEach((prod) => {
+          ul2.appendChild(crearItem(prod, false, t.tienda));
+        });
+        det.appendChild(ul2);
+        col.appendChild(det);
+      }
+
+      resultsEl.appendChild(col);
+    });
+  }
+
+  /* ---------- Pestaña 2: lista de compras ---------- */
+  const listView = document.getElementById('listView');
+  const listActions = document.getElementById('listActions');
+  const listStatus = document.getElementById('listStatus');
+  const badge = document.getElementById('badge');
+  const progress = document.getElementById('progress');
+  const progressBar = document.getElementById('progressBar');
+  const updateBtn = document.getElementById('updateBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  const activos = () => lista.filter((i) => i.estado !== 'sinStock');
+  const totalDe = (items) => items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+  function crearFila(item) {
+    const fila = el('div', 'l-item' + (item.estado === 'sinStock' ? ' oos' : ''));
+
+    const izq = el('div');
+    izq.appendChild(el('div', 'l-name', item.nombre));
+    izq.appendChild(el('div', 'l-unit', pesos(item.precio) + ' c/u'));
+    agregarPromos(izq, item);
+    if (item.precioAnterior && item.precioAnterior !== item.precio) {
+      const sube = item.precio > item.precioAnterior;
+      izq.appendChild(el('div', 'l-changed',
+        (sube ? 'Subió' : 'Bajó') + ': antes ' + pesos(item.precioAnterior)));
+    }
+    if (item.estado === 'sinStock') {
+      izq.appendChild(el('div', 'l-warn', 'Sin stock ahora: no está sumado al total'));
+    } else if (item.estado === 'noVerificado') {
+      izq.appendChild(el('div', 'l-warn', 'No se pudo verificar el precio actual'));
+    }
+    fila.appendChild(izq);
+    fila.appendChild(el('div', 'l-sub', pesos(item.precio * item.cantidad)));
+
+    const ctrl = el('div', 'l-controls');
+    const qty = el('div', 'qty');
+    const menos = el('button', '', '−');
+    menos.type = 'button';
+    menos.setAttribute('aria-label', 'Una unidad menos de ' + item.nombre);
+    const num = el('span', 'qty-num', String(item.cantidad));
+    const mas = el('button', '', '+');
+    mas.type = 'button';
+    mas.setAttribute('aria-label', 'Una unidad más de ' + item.nombre);
+    menos.addEventListener('click', () => {
+      if (item.cantidad > 1) { item.cantidad--; guardarLista(); renderLista(); }
+    });
+    mas.addEventListener('click', () => {
+      if (item.cantidad < 99) { item.cantidad++; guardarLista(); renderLista(); }
+    });
+    qty.append(menos, num, mas);
+    ctrl.appendChild(qty);
+
+    const quitar = el('button', 'btn-remove', 'Quitar');
+    quitar.type = 'button';
+    quitar.setAttribute('aria-label', 'Quitar ' + item.nombre + ' de la lista');
+    quitar.addEventListener('click', () => {
+      lista = lista.filter((i) => i !== item);
+      guardarLista();
+      renderLista();
+    });
+    ctrl.appendChild(quitar);
+
+    if (item.url) {
+      const a = el('a', '', 'Ver en la web del súper');
+      a.href = item.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      ctrl.appendChild(a);
+    }
+    fila.appendChild(ctrl);
+    return fila;
+  }
+
+  function renderLista() {
+    // Contador en la pestaña
+    badge.textContent = String(lista.length);
+    badge.style.display = lista.length > 0 ? 'inline-block' : 'none';
+
+    listView.innerHTML = '';
+    if (lista.length === 0) {
+      listActions.style.display = 'none';
+      listView.appendChild(el('div', 'list-empty',
+        'Todavía no agregaste nada. Buscá un producto en la otra pestaña, elegí la cantidad y tocá "Agregar a la lista".'));
+      return;
+    }
+    listActions.style.display = 'flex';
+
+    // Agrupar por súper
+    const grupos = {};
+    lista.forEach((i) => { (grupos[i.tienda] = grupos[i.tienda] || []).push(i); });
+    const nombres = NOMBRES_TIENDA.filter((n) => grupos[n])
+      .concat(Object.keys(grupos).filter((n) => !NOMBRES_TIENDA.includes(n)));
+
+    nombres.forEach((nombre) => {
+      const items = grupos[nombre];
+      const box = el('div', 'store-group');
+      const head = el('div', 'store-group-head');
+      head.appendChild(el('h2', '', nombre));
+      head.appendChild(el('span', 'sub', pesos(totalDe(items.filter((i) => i.estado !== 'sinStock')))));
+      box.appendChild(head);
+      items.forEach((it) => box.appendChild(crearFila(it)));
+      listView.appendChild(box);
+    });
+
+    // Total
+    const activosLista = activos();
+    const sinStock = lista.length - activosLista.length;
+    const totalBox = el('div', 'total-box');
+    const linea = el('div', 'total-line');
+    linea.appendChild(el('span', 'label', 'Total de la compra'));
+    linea.appendChild(el('span', 'amount', pesos(totalDe(activosLista))));
+    totalBox.appendChild(linea);
+    const unidades = activosLista.reduce((s, i) => s + i.cantidad, 0);
+    totalBox.appendChild(el('p', 'total-note',
+      lista.length + (lista.length === 1 ? ' producto' : ' productos') + ' en la lista (' + unidades + ' unidades en total)' +
+      (sinStock > 0 ? '. ' + sinStock + ' sin stock no ' + (sinStock === 1 ? 'está sumado' : 'están sumados') + '.' : '.')));
+    listView.appendChild(totalBox);
+  }
+
+  // Vuelve a consultar cada producto de la lista para refrescar precio y stock.
+  async function actualizarPrecios() {
+    if (lista.length === 0) return;
+    const items = lista.slice();
+    updateBtn.disabled = true;
+    listStatus.textContent = 'Actualizando precios...';
+    progress.classList.add('show');
+    progressBar.style.width = '0%';
+
+    let siguiente = 0;
+    let hechos = 0;
+    let cambiaron = 0;
+
+    async function worker() {
+      while (true) {
+        const i = siguiente++;
+        if (i >= items.length) return;
+        const it = items[i];
+        try {
+          const resp = await fetch('/api/buscar?q=' + encodeURIComponent(it.nombre));
+          const data = await resp.json();
+          if (!resp.ok) throw new Error('error');
+          const t = data.tiendas[it.tienda.toLowerCase()];
+          if (!t || !t.ok) {
+            it.estado = 'noVerificado';
+          } else {
+            const igual = t.productos.find((p) => norm(p.nombre) === norm(it.nombre));
+            if (!igual) {
+              it.estado = 'noVerificado';
+            } else if (!igual.disponible) {
+              it.estado = 'sinStock';
+            } else {
+              if (igual.precio !== it.precio) cambiaron++;
+              it.precioAnterior = igual.precio !== it.precio ? it.precio : null;
+              it.precio = igual.precio;
+              it.precioLista = igual.precioLista || null;
+              it.promos = igual.promos || [];
+              it.descuentoPct = igual.descuentoPct || null;
+              it.estado = 'ok';
+              if (igual.url) it.url = igual.url;
+            }
+          }
+        } catch (e) {
+          it.estado = 'noVerificado';
+        }
+        hechos++;
+        progressBar.style.width = Math.round((hechos / items.length) * 100) + '%';
+        listStatus.textContent = 'Actualizando... ' + hechos + ' de ' + items.length;
+      }
+    }
+
+    await Promise.all([worker(), worker(), worker()]);
+    guardarLista();
+    renderLista();
+    progress.classList.remove('show');
+    updateBtn.disabled = false;
+
+    const sinStock = lista.filter((i) => i.estado === 'sinStock').length;
+    const noVerif = lista.filter((i) => i.estado === 'noVerificado').length;
+    const partes = ['Listo. ' + cambiaron + (cambiaron === 1 ? ' precio cambió' : ' precios cambiaron')];
+    if (sinStock) partes.push(sinStock + ' sin stock');
+    if (noVerif) partes.push(noVerif + ' no se pudieron verificar');
+    listStatus.textContent = partes.join(', ') + '.';
+  }
+
+  function textoDeLaLista() {
+    const grupos = {};
+    lista.forEach((i) => { (grupos[i.tienda] = grupos[i.tienda] || []).push(i); });
+    const nombres = NOMBRES_TIENDA.filter((n) => grupos[n])
+      .concat(Object.keys(grupos).filter((n) => !NOMBRES_TIENDA.includes(n)));
+    const out = ['Lista de compras', ''];
+    nombres.forEach((nombre) => {
+      out.push(nombre.toUpperCase());
+      grupos[nombre].forEach((i) => {
+        if (i.estado === 'sinStock') {
+          out.push('- ' + i.nombre + ': SIN STOCK');
+        } else {
+          out.push('- ' + (i.cantidad > 1 ? i.cantidad + ' x ' : '') + i.nombre + ': ' + pesos(i.precio) +
+            (i.cantidad > 1 ? ' c/u = ' + pesos(i.precio * i.cantidad) : '') +
+            (i.promos && i.promos.length ? ' [' + i.promos.join(' / ') + ']' : ''));
+        }
+      });
+      out.push('Subtotal ' + nombre + ': ' + pesos(totalDe(grupos[nombre].filter((i) => i.estado !== 'sinStock'))));
+      out.push('');
+    });
+    out.push('TOTAL: ' + pesos(totalDe(activos())));
+    return out.join('\n');
+  }
+
+  updateBtn.addEventListener('click', actualizarPrecios);
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(textoDeLaLista());
+      copyBtn.textContent = 'Copiada ✓';
+    } catch (err) {
+      copyBtn.textContent = 'No se pudo copiar';
+    }
+    setTimeout(() => { copyBtn.textContent = 'Copiar lista'; }, 2000);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (confirm('¿Seguro que querés vaciar toda la lista?')) {
+      lista = [];
+      guardarLista();
+      listStatus.textContent = '';
+      renderLista();
+    }
+  });
+
+  renderLista();
+</script>
+</body>
+</html>
